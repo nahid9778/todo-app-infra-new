@@ -1,0 +1,67 @@
+pool: NewPool
+
+trigger: none
+
+jobs:
+  - job: TerraformInitandPlan
+    displayName: Terraform Init and Plan
+    pool: NewPool
+    steps:
+    - task: TerraformInstaller@1
+      inputs:
+        terraformVersion: 'latest'
+    - task: TerraformTask@5
+      displayName: Terraform Init
+      inputs:
+        provider: 'azurerm'
+        command: 'init'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/environment/prod'
+        backendServiceArm: 'Azure subscription 1'
+        backendAzureRmStorageAccountName: 'stgbackend001'
+        backendAzureRmContainerName: 'tfstate'
+        backendAzureRmKey: 'new.terraform.tfstate'
+    - task: TerraformTask@5
+      displayName: Terraform Validate
+      inputs:
+        provider: 'azurerm'
+        command: 'validate'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/environment/prod'
+    - task: TerraformTask@5
+      displayName: Terraform Plan
+      inputs:
+        provider: 'azurerm'
+        command: 'plan'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/environment/prod'
+        environmentServiceNameAzureRM: 'Azure subscription 1'
+  - job: ManualApprovalJob
+    displayName: Manual Approval
+    dependsOn: TerraformInitandPlan
+    pool: server
+    steps:
+    - task: ManualValidation@1
+      inputs:
+        notifyUsers: 'arcane3108@gmail.com'
+  - job: TerraformApplyJob
+    displayName: Terraform Apply
+    dependsOn: ManualApprovalJob
+    pool: NewPool
+    steps:
+    - task: TerraformTask@5
+      displayName: Terraform Init
+      inputs:
+        provider: 'azurerm'
+        command: 'init'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/environment/prod'
+        backendServiceArm: 'Azure subscription 1'
+        backendAzureRmStorageAccountName: 'stgbackend001'
+        backendAzureRmContainerName: 'tfstate'
+        backendAzureRmKey: 'new.terraform.tfstate'
+    - task: TerraformTask@5
+      displayName: Terraform Apply
+      inputs:
+        provider: 'azurerm'
+        command: 'apply'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/environment/prod'
+        environmentServiceNameAzureRM: 'Azure subscription 1'
+    
+
